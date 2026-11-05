@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#5265e8">
+  <meta name="description" content="A simple chat app for friends.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./icon.svg" type="image/svg+xml">
+  <title>Chat</title>
+
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, sans-serif;
+      color: #172033;
+      background: #eef2f8;
+    }
+
+    button, input { font: inherit; }
+    button { cursor: pointer; }
+    .hidden { display: none !important; }
+
+    .auth {
+      width: min(420px, 92vw);
+      margin: 10vh auto;
+      padding: 28px;
+      background: white;
+      border-radius: 18px;
+      box-shadow: 0 12px 40px #17203318;
+    }
+
+    .auth h1 { margin-top: 0; }
+
+    .auth input, .add-contact input {
+      width: 100%;
+      padding: 12px;
+      margin: 7px 0;
+      border: 1px solid #d5dbea;
+      border-radius: 10px;
+    }
+
+    .primary, .secondary, .icon-button {
+      border: 0;
+      border-radius: 10px;
+      padding: 10px 14px;
+    }
+
+    .primary { color: white; background: #5265e8; }
+    .secondary { color: #3644a5; background: #eef0ff; }
+    .auth .primary { width: 100%; margin-top: 10px; }
+    .status { min-height: 1.4em; color: #b42318; font-size: .9rem; }
+
+    .app {
+      width: min(1100px, 96vw);
+      height: min(760px, 94vh);
+      min-height: 480px;
+      margin: 3vh auto;
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      background: white;
+      border-radius: 18px;
+      overflow: hidden;
+      box-shadow: 0 12px 40px #17203318;
+    }
+
+    aside {
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid #e6e9f1;
+      min-width: 0;
+    }
+
+    .side-header, .chat-header {
+      padding: 16px;
+      border-bottom: 1px solid #e6e9f1;
+    }
+
+    .side-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .side-header small {
+      display: block;
+      color: #667085;
+      overflow-wrap: anywhere;
+      margin: 5px 0;
+    }
+
+    .add-contact { padding: 12px; }
+    .add-contact button { width: 100%; }
+    #chatList { overflow-y: auto; }
+
+    .chat-item {
+      display: block;
+      width: 100%;
+      padding: 14px;
+      text-align: left;
+      border: 0;
+      border-bottom: 1px solid #f0f1f5;
+      background: white;
+      overflow-wrap: anywhere;
+    }
+
+    .chat-item:hover, .chat-item.active { background: #f0f2ff; }
+    .chat-item small { color: #667085; }
+
+    .chat-area {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+    }
+
+    .chat-header { min-height: 62px; font-weight: 700; }
+
+    #messages {
+      flex: 1;
+      padding: 18px;
+      overflow-y: auto;
+      background: #f8f9fc;
+    }
+
+    .empty { color: #667085; text-align: center; margin: 35px 10px; }
+
+    .message {
+      width: fit-content;
+      max-width: min(75%, 520px);
+      margin: 8px 0;
+      padding: 10px 12px;
+      border-radius: 14px;
+      background: white;
+      box-shadow: 0 1px 3px #17203312;
+      overflow-wrap: anywhere;
+      white-space: pre-wrap;
+    }
+
+    .message.mine { margin-left: auto; background: #e8ebff; }
+
+    .message img, .message video {
+      display: block;
+      max-width: 100%;
+      max-height: 320px;
+      border-radius: 10px;
+      margin-top: 5px;
+    }
+
+    .message audio { max-width: 100%; margin-top: 5px; }
+    .message time { display: block; margin-top: 5px; color: #667085; font-size: .72rem; }
+
+    .composer {
+      padding: 12px;
+      border-top: 1px solid #e6e9f1;
+    }
+
+    .tools { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 8px; }
+    .icon-button { background: #f0f2f7; padding: 8px 10px; }
+    .send-row { display: flex; gap: 8px; }
+
+    #messageInput {
+      flex: 1;
+      min-width: 0;
+      padding: 11px;
+      border: 1px solid #d5dbea;
+      border-radius: 10px;
+    }
+
+    #recordStatus { color: #b42318; font-size: .85rem; }
+
+    @media (max-width: 650px) {
+      .app {
+        width: 100%;
+        height: 100dvh;
+        min-height: 0;
+        margin: 0;
+        border-radius: 0;
+        grid-template-columns: 130px 1fr;
+      }
+
+      .side-header { display: block; padding: 10px; }
+      .side-header .primary { margin-top: 8px; padding: 7px; }
+      .add-contact { padding: 7px; }
+      .add-contact input { padding: 8px; font-size: .82rem; }
+      .chat-item { padding: 10px 7px; font-size: .85rem; }
+      .chat-header { padding: 14px 10px; }
+      #messages { padding: 10px; }
+      .message { max-width: 90%; }
+      .composer { padding: 8px; }
+    }
+  </style>
+</head>
+<body>
+  <section id="authView" class="auth">
+    <h1>Chat</h1>
+    <p>Sign in or create an account to message a friend.</p>
+
+    <form id="authForm">
+      <input id="emailInput" type="email" placeholder="Email" autocomplete="email" required>
+      <input id="passwordInput" type="password" placeholder="Password (at least 6 characters)" autocomplete="current-password" minlength="6" required>
+      <button class="primary" type="submit">Sign in</button>
+    </form>
+
+    <button id="registerButton" class="secondary" type="button">Create account</button>
+    <p id="authStatus" class="status"></p>
+  </section>
+
+  <main id="appView" class="app hidden">
+    <aside>
+      <div class="side-header">
+        <div>
+          <strong>Messages</strong>
+          <small>Your ID: <span id="myUid"></span></small>
+          <button id="copyUidButton" class="secondary" type="button">Copy ID</button>
+        </div>
+        <button id="signOutButton" class="primary" type="button">Sign out</button>
+      </div>
+
+      <form id="addContactForm" class="add-contact">
+        <input id="contactUid" type="text" placeholder="Friend's user ID" required>
+        <input id="contactName" type="text" placeholder="Name for this chat" maxlength="40">
+        <button class="secondary" type="submit">Add contact</button>
+        <div id="contactStatus" class="status"></div>
+      </form>
+
+      <div id="chatList"></div>
+    </aside>
+
+    <section class="chat-area">
+      <header id="chatHeader" class="chat-header">Choose a contact to chat</header>
+      <div id="messages">
+        <p class="empty">Your conversations will appear here.</p>
+      </div>
+
+      <form id="composer" class="composer hidden">
+        <div class="tools">
+          <button class="icon-button" type="button" data-emoji="😀">😀</button>
+          <button class="icon-button" type="button" data-emoji="❤️">❤️</button>
+          <button class="icon-button" type="button" data-emoji="😂">😂</button>
+          <button class="icon-button" type="button" data-emoji="🎉">🎉</button>
+          <button class="icon-button" type="button" data-sticker="🐱">🐱 Sticker</button>
+          <button class="icon-button" type="button" data-sticker="🌈">🌈 Sticker</button>
+          <button id="mediaButton" class="icon-button" type="button">Image/video</button>
+          <button id="recordButton" class="icon-button" type="button">🎙 Voice note</button>
+          <input id="mediaInput" type="file" accept="image/*,video/*" hidden>
+        </div>
+
+        <div class="send-row">
+          <input id="messageInput" maxlength="4000" placeholder="Write a message…" autocomplete="off">
+          <button class="primary" type="submit">Send</button>
+        </div>
+        <div id="recordStatus"></div>
+      </form>
+    </section>
+  </main>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
+    import {
+      getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+      onAuthStateChanged, signOut
+    } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js";
+    import {
+      getFirestore, doc, getDoc, setDoc, collection, addDoc, query, where,
+      orderBy, limit, onSnapshot, serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js";
+    import {
+      getStorage, ref, uploadBytes, getDownloadURL
+    } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-storage.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyAQodh8GZ14YTEonwYi0usIStp-lqKib30",
+      authDomain: "brand-eye-3d8e4.firebaseapp.com",
+      projectId: "brand-eye-3d8e4",
+      storageBucket: "brand-eye-3d8e4.firebasestorage.app",
+      messagingSenderId: "432587992989",
+      appId: "1:432587992989:web:9eaa7b809c3029ab380974"
+    };
+
+    const firebaseApp = initializeApp(firebaseConfig);
+    const auth = getAuth(firebaseApp);
+    const db = getFirestore(firebaseApp);
+    const storage = getStorage(firebaseApp);
+    const $ = (id) => document.getElementById(id);
+
+    let currentUser = null;
+    let activeChat = null;
+    let stopChats = null;
+    let stopMessages = null;
+    let mediaRecorder = null;
+    let recordedChunks = [];
+
+    function showStatus(id, text) {
+      $(id).textContent = text;
+    }
+
+    function friendlyError(error) {
+      const known = {
+        "auth/invalid-credential": "Email or password is incorrect.",
+        "auth/email-already-in-use": "That email already has an account.",
+        "auth/weak-password": "Choose a password with at least 6 characters.",
+        "auth/invalid-email": "Enter a valid email address.",
+        "permission-denied": "Permission denied. Check that the Firebase rules are published."
+      };
+      return known[error.code] || error.message || "Something went wrong.";
+    }
+
+    async function makeChatId(uid1, uid2) {
+      const pair = [uid1, uid2].sort().join("|");
+      const bytes = new TextEncoder().encode(pair);
+      const digest = await crypto.subtle.digest("SHA-256", bytes);
+      return [...new Uint8Array(digest)]
+        .map((byte) => byte.toString(16).padStart(2, "0"))
+        .join("");
+    }
+
+    $("authForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      showStatus("authStatus", "");
+      try {
+        await signInWithEmailAndPassword(auth, $("emailInput").value.trim(), $("passwordInput").value);
+      } catch (error) {
+        showStatus("authStatus", friendlyError(error));
+      }
+    });
+
+    $("registerButton").addEventListener("click", async () => {
+      showStatus("authStatus", "");
+      try {
+        const credential = await createUserWithEmailAndPassword(
+          auth,
+          $("emailInput").value.trim(),
+          $("passwordInput").value
+        );
+        await setDoc(doc(db, "users", credential.user.uid), {
+          uid: credential.user.uid,
+          createdAt: serverTimestamp()
+        });
+      } catch (error) {
+        showStatus("authStatus", friendlyError(error));
+      }
+    });
+
+    $("signOutButton").addEventListener("click", () => signOut(auth));
+
+    $("copyUidButton").addEventListener("click", async () => {
+      try {
+        await navigator.clipboard.writeText(currentUser.uid);
+        showStatus("contactStatus", "Your user ID was copied.");
+      } catch {
+        showStatus("contactStatus", "Copy this ID: " + currentUser.uid);
+      }
+    });
+
+    onAuthStateChanged(auth, async (user) => {
+      currentUser = user;
+      $("authView").classList.toggle("hidden", !!user);
+      $("appView").classList.toggle("hidden", !user);
+
+      if (!user) {
+        if (stopChats) stopChats();
+        if (stopMessages) stopMessages();
+        activeChat = null;
+        return;
+      }
+
+      $("myUid").textContent = user.uid;
+
+      try {
+        await setDoc(doc(db, "users", user.uid), {
+          uid: user.uid,
+          createdAt: serverTimestamp()
+        }, { merge: true });
+        listenForChats();
+      } catch (error) {
+        showStatus("contactStatus", friendlyError(error));
+      }
+    });
+
+    function listenForChats() {
+      if (stopChats) stopChats();
+
+      const chatsQuery = query(
+        collection(db, "chats"),
+        where("members", "array-contains", currentUser.uid)
+      );
+
+      stopChats = onSnapshot(chatsQuery, (snapshot) => {
+        const chats = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }));
+        chats.sort((a, b) => (b.updatedAt?.seconds || 0) - (a.updatedAt?.seconds || 0));
+
+        const list = $("chatList");
+        list.replaceChildren();
+
+        if (!chats.length) {
+          list.innerHTML = '<p class="empty">Add a friend to begin.</p>';
+          return;
+        }
+
+        for (const chat of chats) {
+          const otherUid = chat.members.find((uid) => uid !== currentUser.uid);
+          const title = chat.names?.[otherUid] || "Friend";
+          const button = document.createElement("button");
+          button.className = "chat-item" + (activeChat?.id === chat.id ? " active" : "");
+
+          const name = document.createElement("strong");
+          name.textContent = title;
+
+          const preview = document.createElement("small");
+          preview.textContent = chat.lastMessage || "Start a conversation";
+
+          button.append(name, document.createElement("br"), preview);
+          button.addEventListener("click", () => openChat(chat));
+          list.append(button);
+        }
+      }, (error) => showStatus("contactStatus", friendlyError(error)));
+    }
+
+    $("addContactForm").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      showStatus("contactStatus", "");
+
+      const otherUid = $("contactUid").value.trim();
+      const nickname = $("contactName").value.trim() || "Friend";
+
+      try {
+        if (!otherUid) throw new Error("Enter your friend's user ID.");
+        if (otherUid === currentUser.uid) throw new Error("That is your own user ID.");
+
+        const friendDoc = await getDoc(doc(db, "users", otherUid));
+        if (!friendDoc.exists()) throw new Error("No account found for that user ID.");
+
+        const chatId = await makeChatId(currentUser.uid, otherUid);
+        const members = [currentUser.uid, otherUid].sort();
+
+        await setDoc(doc(db, "chats", chatId), {
+          members,
+          names: {
+            [currentUser.uid]: currentUser.email?.split("@")[0] || "Friend",
+            [otherUid]: nickname
+          },
+          updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        $("contactUid").value = "";
+        $("contactName").value = "";
+        showStatus("contactStatus", "Chat added.");
+      } catch (error) {
+        showStatus("contactStatus", friendlyError(error));
+      }
+    });
+
+    function openChat(chat) {
+      activeChat = chat;
+      const otherUid = chat.members.find((uid) => uid !== currentUser.uid);
+
+      $("chatHeader").textContent = chat.names?.[otherUid] || "Chat";
+      $("composer").classList.remove("hidden");
+
+      if (stopMessages) stopMessages();
+
+      const messagesQuery = query(
+        collection(db, "chats", chat.id, "messages"),
+        orderBy("createdAt", "asc"),
+        limit(100)
+      );
+
+      stopMessages = onSnapshot(messagesQuery, (snapshot) => {
+        const messages = $("messages");
+        messages.replaceChildren();
+
+        if (snapshot.empty) {
+          messages.innerHTML = '<p class="empty">Say hello!</p>';
+          return;
+        }
+
+        for (const item of snapshot.docs) renderMessage(item.data());
+        messages.scrollTop = messages.scrollHeight;
+      }, (error) => {
+        $("messages").textContent = friendlyError(error);
+      });
+
+      listenForChats();
+    }
+
+    function renderMessage(message) {
+      const box = document.createElement("div");
+      box.className = "message" + (message.senderId === currentUser.uid ? " mine" : "");
+
+      if (message.text) {
+        const text = document.createElement("div");
+        text.textContent = message.text;
+        box.append(text);
+      }
+
+      if (message.mediaUrl) {
+        let media;
+
+        if (message.mediaType?.startsWith("image/")) {
+          media = document.createElement("img");
+          media.alt = "Shared image";
+        } else if (message.mediaType?.startsWith("video/")) {
+          media = document.createElement("video");
+          media.controls = true;
+        } else {
+          media = document.createElement("audio");
+          media.controls = true;
+        }
+
+        media.src = message.mediaUrl;
+        box.append(media);
+      }
+
+      if (message.createdAt?.toDate) {
+        const time = document.createElement("time");
+        time.textContent = message.createdAt.toDate().toLocaleString();
+        box.append(time);
+      }
+
+      $("messages").append(box);
+    }
+
+    async function sendMessage(data) {
+      if (!activeChat || !currentUser) return;
+
+      const chatRef = doc(db, "chats", activeChat.id);
+      await addDoc(collection(chatRef, "messages"), {
+        ...data,
+        senderId: currentUser.uid,
+        createdAt: serverTimestamp()
+      });
+
+      await setDoc(chatRef, {
+        lastMessage: data.text || (data.mediaType?.startsWith("audio/") ? "🎙 Voice note" : "📎 Attachment"),
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+    }
+
+    $("composer").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const text = $("messageInput").value.trim();
+      if (!text) return;
+
+      try {
+        await sendMessage({ text });
+        $("messageInput").value = "";
+      } catch (error) {
+        alert(friendlyError(error));
+      }
+    });
+
+    document.querySelectorAll("[data-emoji], [data-sticker]").forEach((button) => {
+      button.addEventListener("click", async () => {
+        if (!activeChat) return;
+        const text = button.dataset.sticker || button.dataset.emoji;
+
+        try {
+          await sendMessage({ text });
+        } catch (error) {
+          alert(friendlyError(error));
+        }
+      });
+    });
+
+    $("mediaButton").addEventListener("click", () => $("mediaInput").click());
+
+    $("mediaInput").addEventListener("change", async (event) => {
+      const file = event.target.files[0];
+      event.target.value = "";
+      if (!file || !activeChat) return;
+
+      if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+        alert("Choose an image or video file.");
+        return;
+      }
+
+      if (file.size > 50 * 1024 * 1024) {
+        alert("Files must be smaller than 50 MB.");
+        return;
+      }
+
+      try {
+        await uploadAndSend(file);
+      } catch (error) {
+        alert(friendlyError(error));
+      }
+    });
+
+    async function uploadAndSend(file) {
+      const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, "_");
+      const path = `chat-media/${activeChat.id}/${currentUser.uid}_${Date.now()}_${safeName}`;
+      const fileRef = ref(storage, path);
+
+      await uploadBytes(fileRef, file, { contentType: file.type });
+      const mediaUrl = await getDownloadURL(fileRef);
+      await sendMessage({ mediaUrl, mediaType: file.type });
+    }
+
+    $("recordButton").addEventListener("click", async () => {
+      if (!activeChat) return;
+
+      if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+        alert("Voice recording is not supported in this browser.");
+        return;
+      }
+
+      if (mediaRecorder?.state === "recording") {
+        mediaRecorder.stop();
+        $("recordButton").textContent = "🎙 Voice note";
+        $("recordStatus").textContent = "Uploading voice note…";
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        recordedChunks = [];
+        mediaRecorder = new MediaRecorder(stream);
+
+        mediaRecorder.addEventListener("dataavailable", (event) => {
+          if (event.data.size) recordedChunks.push(event.data);
+        });
+
+        mediaRecorder.addEventListener("stop", async () => {
+          stream.getTracks().forEach((track) => track.stop());
+
+          const blob = new Blob(recordedChunks, {
+            type: mediaRecorder.mimeType || "audio/webm"
+          });
+
+          try {
+            if (blob.size > 10 * 1024 * 1024) {
+              throw new Error("Voice note is over 10 MB.");
+            }
+
+            const extension = blob.type.includes("mp4") ? "m4a" : "webm";
+            const file = new File([blob], `voice-note.${extension}`, {
+              type: blob.type
+            });
+
+            await uploadAndSend(file);
+            $("recordStatus").textContent = "";
+          } catch (error) {
+            $("recordStatus").textContent = friendlyError(error);
+          }
+        });
+
+        mediaRecorder.start();
+        $("recordButton").textContent = "⏹ Stop recording";
+        $("recordStatus").textContent = "Recording… press Stop when finished.";
+      } catch (error) {
+        $("recordStatus").textContent = friendlyError(error);
+      }
+    });
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.register("./sw.js").catch(console.error);
+    }
+  </script>
+</body>
+</html>
